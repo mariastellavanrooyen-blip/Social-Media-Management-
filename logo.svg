@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" aria-label="Maria Social Media Co. Logo">
+  <!-- Delicate flower petals -->
+  <!-- Centre -->
+  <circle cx="60" cy="60" r="7" fill="#6B3F2A" opacity="0.9"/>
+
+  <!-- Petals — 8 delicate rounded petals -->
+  <ellipse cx="60" cy="40" rx="5.5" ry="13" fill="#C4956A" opacity="0.75" transform="rotate(0 60 60)"/>
+  <ellipse cx="60" cy="40" rx="5.5" ry="13" fill="#C4956A" opacity="0.70" transform="rotate(45 60 60)"/>
+  <ellipse cx="60" cy="40" rx="5.5" ry="13" fill="#C4956A" opacity="0.65" transform="rotate(90 60 60)"/>
+  <ellipse cx="60" cy="40" rx="5.5" ry="13" fill="#C4956A" opacity="0.70" transform="rotate(135 60 60)"/>
+  <ellipse cx="60" cy="40" rx="5.5" ry="13" fill="#C4956A" opacity="0.75" transform="rotate(180 60 60)"/>
+  <ellipse cx="60" cy="40" rx="5.5" ry="13" fill="#C4956A" opacity="0.70" transform="rotate(225 60 60)"/>
+  <ellipse cx="60" cy="40" rx="5.5" ry="13" fill="#C4956A" opacity="0.65" transform="rotate(270 60 60)"/>
+  <ellipse cx="60" cy="40" rx="5.5" ry="13" fill="#C4956A" opacity="0.70" transform="rotate(315 60 60)"/>
+
+  <!-- Inner smaller petals for depth -->
+  <ellipse cx="60" cy="46" rx="3.5" ry="9" fill="#E8D5C4" opacity="0.85" transform="rotate(22.5 60 60)"/>
+  <ellipse cx="60" cy="46" rx="3.5" ry="9" fill="#E8D5C4" opacity="0.80" transform="rotate(67.5 60 60)"/>
+  <ellipse cx="60" cy="46" rx="3.5" ry="9" fill="#E8D5C4" opacity="0.85" transform="rotate(112.5 60 60)"/>
+  <ellipse cx="60" cy="46" rx="3.5" ry="9" fill="#E8D5C4" opacity="0.80" transform="rotate(157.5 60 60)"/>
+  <ellipse cx="60" cy="46" rx="3.5" ry="9" fill="#E8D5C4" opacity="0.85" transform="rotate(202.5 60 60)"/>
+  <ellipse cx="60" cy="46" rx="3.5" ry="9" fill="#E8D5C4" opacity="0.80" transform="rotate(247.5 60 60)"/>
+  <ellipse cx="60" cy="46" rx="3.5" ry="9" fill="#E8D5C4" opacity="0.85" transform="rotate(292.5 60 60)"/>
+  <ellipse cx="60" cy="46" rx="3.5" ry="9" fill="#E8D5C4" opacity="0.80" transform="rotate(337.5 60 60)"/>
+
+  <!-- Centre dot overlay -->
+  <circle cx="60" cy="60" r="5.5" fill="#6B3F2A"/>
+  <circle cx="60" cy="60" r="2.5" fill="#C4956A" opacity="0.9"/>
+
+  <!-- Tiny leaf detail at bottom -->
+  <path d="M55 80 Q60 73 65 80 Q60 85 55 80Z" fill="#8B6B4A" opacity="0.5"/>
+
+  <!-- Fine stem -->
+  <line x1="60" y1="80" x2="60" y2="92" stroke="#8B6B4A" stroke-width="1.5" opacity="0.6" stroke-linecap="round"/>
+</svg>
