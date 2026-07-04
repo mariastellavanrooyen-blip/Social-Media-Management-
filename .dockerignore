@@ -1,0 +1,15 @@
+.git
+.gitignore
+README.md
+
+backend/.venv
+backend/tests
+backend/.pytest_cache
+backend/crm.db
+backend/uploads/*.csv
+backend/credentials.json
+backend/token.json
+backend/.secret_key
+
+**/__pycache__
+**/*.pyc

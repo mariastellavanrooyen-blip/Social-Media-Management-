@@ -18,6 +18,11 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(title="Solo CRM")
 
 
+@app.get("/healthz")
+def healthz():
+    return {"status": "ok"}
+
+
 # --- Clients ---
 
 

@@ -1,11 +1,14 @@
+import os
 import uuid
 from io import BytesIO
 from pathlib import Path
 
 import pandas as pd
 
-UPLOADS_DIR = Path(__file__).resolve().parent.parent / "uploads"
-UPLOADS_DIR.mkdir(exist_ok=True)
+UPLOADS_DIR = Path(
+    os.environ.get("UPLOADS_DIR", str(Path(__file__).resolve().parent.parent / "uploads"))
+)
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def parse_upload(filename: str, content: bytes) -> pd.DataFrame:

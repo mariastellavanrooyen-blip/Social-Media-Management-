@@ -1,0 +1,35 @@
+# Replace with the name you reserve via `fly apps create <name>`.
+app = "REPLACE-WITH-YOUR-APP-NAME"
+primary_region = "iad" # change to whatever `fly platform regions` shows as closest to you
+
+[build]
+
+[env]
+  # SQLite + uploads live on the mounted volume so they survive deploys/restarts.
+  DATABASE_URL = "sqlite:////data/crm.db"
+  UPLOADS_DIR = "/data/uploads"
+  # Update this to https://<your-app-name>.fly.dev once the app name above is final
+  # (must be redeployed after changing — see README "Deploy to Fly.io").
+  UNSUBSCRIBE_BASE_URL = "https://REPLACE-WITH-YOUR-APP-NAME.fly.dev"
+
+[[mounts]]
+  source = "crm_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    path = "/healthz"
+    timeout = "5s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

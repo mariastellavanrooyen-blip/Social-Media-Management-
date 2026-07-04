@@ -1,4 +1,6 @@
 import base64
+import json
+import os
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
@@ -11,19 +13,34 @@ from googleapiclient.discovery import build
 SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
-CREDENTIALS_FILE = BACKEND_DIR / "credentials.json"
-TOKEN_FILE = BACKEND_DIR / "token.json"
+CREDENTIALS_FILE = Path(os.environ.get("GOOGLE_CREDENTIALS_FILE", str(BACKEND_DIR / "credentials.json")))
+TOKEN_FILE = Path(os.environ.get("GOOGLE_TOKEN_FILE", str(BACKEND_DIR / "token.json")))
 
 
 class GmailNotAuthorized(Exception):
     pass
 
 
+def _load_token_info() -> dict | None:
+    """GOOGLE_TOKEN_JSON (a Fly secret / env var) wins over the local token.json file.
+
+    On a cloud host there's no writable-and-persistent plain file by default, so
+    production deployments should set GOOGLE_TOKEN_JSON instead of relying on TOKEN_FILE.
+    """
+    env_token = os.environ.get("GOOGLE_TOKEN_JSON")
+    if env_token:
+        return json.loads(env_token)
+    if TOKEN_FILE.exists():
+        return json.loads(TOKEN_FILE.read_text())
+    return None
+
+
 def is_connected() -> bool:
-    if not TOKEN_FILE.exists():
+    info = _load_token_info()
+    if info is None:
         return False
     try:
-        creds = Credentials.from_authorized_user_file(str(TOKEN_FILE), SCOPES)
+        creds = Credentials.from_authorized_user_info(info, SCOPES)
     except Exception:
         return False
     return creds.valid or bool(creds.expired and creds.refresh_token)
@@ -33,31 +50,41 @@ def get_credentials() -> Credentials:
     """Load cached OAuth credentials, refreshing the access token if needed.
 
     Never triggers the interactive consent flow itself — that only happens via
-    `scripts/gmail_auth.py`, run once on a machine with browser access.
+    scripts/gmail_auth.py or scripts/gmail_manual_token.py, run once locally.
     """
-    if not TOKEN_FILE.exists():
+    info = _load_token_info()
+    if info is None:
         raise GmailNotAuthorized(
-            "Gmail is not connected. Run `python scripts/gmail_auth.py` once "
-            "on a machine with a browser to grant gmail.send access."
+            "Gmail is not connected. Set the GOOGLE_TOKEN_JSON secret (or run "
+            "scripts/gmail_auth.py / scripts/gmail_manual_token.py locally) to grant "
+            "gmail.send access."
         )
-    creds = Credentials.from_authorized_user_file(str(TOKEN_FILE), SCOPES)
+    creds = Credentials.from_authorized_user_info(info, SCOPES)
     if not creds.valid:
         if creds.expired and creds.refresh_token:
             creds.refresh(Request())
-            TOKEN_FILE.write_text(creds.to_json())
+            # Only the local-file path is writable-and-persistent; a GOOGLE_TOKEN_JSON
+            # secret can't be updated from inside the running app, and doesn't need to be
+            # — it'll simply refresh again next time from the same refresh_token.
+            if not os.environ.get("GOOGLE_TOKEN_JSON"):
+                TOKEN_FILE.write_text(creds.to_json())
         else:
             raise GmailNotAuthorized(
-                "Gmail authorization expired or was revoked. Run "
-                "`python scripts/gmail_auth.py` again."
+                "Gmail authorization expired or was revoked. Re-run the auth script "
+                "locally and update the GOOGLE_TOKEN_JSON secret."
             )
     return creds
 
 
 def run_authorization_flow() -> None:
     """Interactive, one-time OAuth consent flow. Run manually — never from the server."""
+    env_credentials = os.environ.get("GOOGLE_CREDENTIALS_JSON")
+    if env_credentials and not CREDENTIALS_FILE.exists():
+        CREDENTIALS_FILE.write_text(env_credentials)
     if not CREDENTIALS_FILE.exists():
         raise FileNotFoundError(
-            f"{CREDENTIALS_FILE} not found — place your Google OAuth credentials.json there first"
+            f"{CREDENTIALS_FILE} not found — place your Google OAuth credentials.json there "
+            "first, or set the GOOGLE_CREDENTIALS_JSON environment variable"
         )
     flow = InstalledAppFlow.from_client_secrets_file(str(CREDENTIALS_FILE), SCOPES)
     creds = flow.run_local_server(port=0)
