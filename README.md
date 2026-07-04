@@ -111,68 +111,38 @@ nears 450, safely under Gmail's free-tier 500/day limit (`GMAIL_DAILY_LIMIT` env
 
 ## Deploy to Fly.io
 
-The app reads its persistent state from three places that must survive redeploys:
-the SQLite DB (`DATABASE_URL`), uploaded sheets (`UPLOADS_DIR`), and the Gmail token
-(`GOOGLE_TOKEN_JSON`). On Fly, the DB/uploads live on a mounted volume and the Gmail
-token lives in a Fly secret (an env var) — never in a plain file baked into the image.
+Deploys run via GitHub Actions (`.github/workflows/fly-deploy.yml`), not a local `flyctl`
+install — it runs `flyctl deploy --remote-only` on GitHub's runners on every push to `main`
+(or manually via the Actions tab's "Run workflow" button). The app itself, its volume, and
+its secrets are one-time setup done through Fly's web dashboard (no CLI required at all).
 
-1. **Install flyctl and log in** (skip if already done):
-   ```bash
-   curl -L https://fly.io/install.sh | sh
-   fly auth login
-   ```
+The app reads its persistent state from three places that must survive redeploys: the
+SQLite DB (`DATABASE_URL`), uploaded sheets (`UPLOADS_DIR`), and the Gmail token
+(`GOOGLE_TOKEN_JSON`). The DB/uploads live on a mounted volume; the Gmail token lives in a
+Fly secret (an env var) — never in a plain file baked into the image.
 
-2. **Reserve an app name** (must be globally unique) and put it in `fly.toml`:
-   ```bash
-   fly apps create your-app-name
-   ```
-   Edit `fly.toml`: set `app = "your-app-name"` and `primary_region` to whatever
-   `fly platform regions` shows as closest to you.
+**One-time setup (fly.io/dashboard):**
 
-3. **Create the persistent volume** (must match `fly.toml`'s `[[mounts]]` source name
-   and be in the same region as step 2):
-   ```bash
-   fly volumes create crm_data --region <your-region> --size 1
-   ```
+1. Create a Personal Access Token (Account → Personal Access Tokens), add it to this repo's
+   GitHub Actions secrets as `FLY_API_TOKEN`.
+2. Create the app with the exact name in `fly.toml`'s `app =` field, in the region matching
+   `primary_region` (change either if you'd rather use your own).
+3. Attach a volume named to match `fly.toml`'s `[[mounts]] source` (1GB is plenty), in the
+   same region.
+4. Set secrets on the app: `GOOGLE_TOKEN_JSON` (required — the refresh token the app actually
+   sends mail with), `SECRET_KEY` (signs unsubscribe links; generate a fresh random value,
+   not reused from anything else), and optionally `GOOGLE_CREDENTIALS_JSON` (not used at
+   runtime, only kept for a future re-auth). Never put real values for these in this repo —
+   paste them only into Fly's dashboard or a local `fly secrets set`.
+5. Update `UNSUBSCRIBE_BASE_URL` in `fly.toml`'s `[env]` block to `https://<app-name>.fly.dev`
+   (or your custom domain, once attached) and push — that's what recipients' unsubscribe
+   links point at.
 
-4. **Set secrets.** Never put real values here in the README/repo — always run `fly secrets
-   set` interactively (or paste values only in your own terminal), so nothing sensitive ends
-   up in git history:
-   ```bash
-   fly secrets set GOOGLE_TOKEN_JSON='<contents of your local backend/token.json, one line>'
-   fly secrets set GOOGLE_CREDENTIALS_JSON='<contents of your local backend/credentials.json>'
-   fly secrets set SECRET_KEY='<a freshly generated random value, e.g. `openssl rand -hex 32`>'
-   ```
-   - `GOOGLE_TOKEN_JSON` is what the app actually needs to send mail — the refresh token
-     inside it doesn't expire from use, so nothing here needs rotating.
-   - `GOOGLE_CREDENTIALS_JSON` isn't used at runtime (only by the interactive consent
-     flow, which never runs on the server) — set for completeness/future re-auth, skip it
-     if you'd rather not.
-   - `SECRET_KEY` signs unsubscribe links; generate a fresh one rather than reusing anything
-     else. Setting it explicitly (instead of relying on an auto-generated file) means
-     unsubscribe links keep working across redeploys.
-
-5. **Point `UNSUBSCRIBE_BASE_URL` at the real hostname.** Once you know your app name,
-   edit `fly.toml`'s `[env]` block:
-   ```toml
-   UNSUBSCRIBE_BASE_URL = "https://your-app-name.fly.dev"
-   ```
-   (A custom domain works the same way — just put that here instead once it's attached.)
-
-6. **Deploy:**
-   ```bash
-   fly deploy
-   ```
-   This builds the image on Fly's remote builder (no local Docker required) and starts
-   the app with the volume mounted at `/data`.
-
-7. **Verify:**
-   ```bash
-   fly status
-   curl https://your-app-name.fly.dev/healthz
-   curl https://your-app-name.fly.dev/api/gmail/status   # should show {"connected": true}
-   ```
-   Then open `https://your-app-name.fly.dev/index.html` from your tablet.
+Then push to `main` (or run the workflow manually) to deploy. Verify with:
+```bash
+curl https://<app-name>.fly.dev/healthz
+curl https://<app-name>.fly.dev/api/gmail/status   # should show {"connected": true}
+```
 
 This config targets Fly's smallest footprint (`shared-cpu-1x`, 256MB, a 1GB volume,
 scale-to-zero via `auto_stop_machines`/`min_machines_running = 0`) to fit comfortably
