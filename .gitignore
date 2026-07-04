@@ -7,7 +7,6 @@ venv/
 
 # Gmail OAuth (never commit these)
 credentials.json
-device_credentials.json
 token.json
 
 # Unsubscribe-link signing secret (auto-generated on first run)

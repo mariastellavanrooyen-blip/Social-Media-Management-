@@ -74,27 +74,32 @@ reads for every send (it never runs either flow itself — both are one-time, ma
    ```
    This opens a local browser for the Google consent screen and caches the resulting token.
 
-### Option B — no local browser (e.g. running this on a headless box, driving it from a tablet/phone)
+### Option B — no local browser to run scripts/gmail_auth.py on (e.g. driving this from a tablet)
 
-Uses Google's Device Authorization flow — no redirect URI and no exposed port required.
+Google's Device Authorization flow (short code + `google.com/device`) looks like the obvious
+fit here, but Google rejects restricted/sensitive scopes — including `gmail.send` — on that
+flow entirely, so it can't be used for this app. Instead, use Google's own **OAuth Playground**
+as the redirect target — it completes the whole consent flow in-browser (works fine on a
+tablet) and hands you the resulting refresh token to paste in yourself, with nothing on our
+side needing to receive a redirect.
 
-1. In Google Cloud Console, create a **separate** OAuth client of type **"TVs and Limited Input
-   devices"** (Gmail API must already be enabled on the project) and save its `client_id`/
-   `client_secret` as `backend/device_credentials.json` (gitignored), e.g.:
-   ```json
-   {"installed": {"client_id": "...", "client_secret": "..."}}
-   ```
-2. Make sure your Google account is under **OAuth consent screen → Test users** and that
-   `gmail.send` is listed as a scope.
-3. Run:
+1. In Google Cloud Console, create a **separate** OAuth client of type **"Web application"**,
+   with `https://developers.google.com/oauthplayground` added under **Authorized redirect
+   URIs**. Note its client ID and client secret.
+2. On any device's browser, go to https://developers.google.com/oauthplayground
+3. Gear icon (top right) → check "Use your own OAuth credentials" → paste the client ID/secret
+   from step 1.
+4. Under "Input your own scopes", enter `https://www.googleapis.com/auth/gmail.send` and click
+   **Authorize APIs**. Sign in and grant access.
+5. Back on the Playground, click **Exchange authorization code for tokens**.
+6. Copy the **Refresh token** shown, then run:
    ```bash
    cd backend
    source .venv/bin/activate
-   python scripts/gmail_device_auth.py
+   python scripts/gmail_manual_token.py <client_id> <client_secret> <refresh_token>
    ```
-   It prints a short code and a URL (`google.com/device`) — open that URL and enter the code on
-   any device with a browser (your tablet is fine), sign in, and grant access. The script polls
-   Google in the background and writes `token.json` once you approve it.
+   This writes `token.json` and immediately exercises the refresh token against Google to
+   confirm it actually works.
 
 Check connection status any time at `GET /api/gmail/status`, or the badge on the Bulk Email page.
 
