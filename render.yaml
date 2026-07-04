@@ -1,0 +1,22 @@
+# Render "Blueprint" — connect this repo via Render's dashboard (New +  ->  Blueprint)
+# and it reads this file to provision the service. Env vars marked `sync: false` are
+# secrets: Render will prompt for their values during setup rather than reading them
+# from here, so nothing sensitive ever lives in this repo.
+services:
+  - type: web
+    name: solo-crm-ee2172
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /healthz
+    envVars:
+      - key: DATABASE_URL
+        sync: false # Neon/Supabase Postgres connection string
+      - key: GOOGLE_TOKEN_JSON
+        sync: false # Gmail refresh token (see README "Gmail setup")
+      - key: SECRET_KEY
+        sync: false # signs unsubscribe links — generate fresh, e.g. `openssl rand -hex 32`
+      - key: GOOGLE_CREDENTIALS_JSON
+        sync: false # optional, only needed for a future re-auth
+      - key: UNSUBSCRIBE_BASE_URL
+        value: https://solo-crm-ee2172.onrender.com

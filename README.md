@@ -1,7 +1,8 @@
 # Solo CRM + Bulk Cold Email Tool
 
 Lightweight CRM and bulk cold-email tool for a single user. Python/FastAPI backend,
-SQLite database, plain HTML/JS frontend (no build step).
+plain HTML/JS frontend (no build step). SQLite locally by default; Postgres (e.g. a free
+Neon or Supabase database) in production, via `DATABASE_URL`.
 
 ## Status
 
@@ -15,7 +16,8 @@ SQLite database, plain HTML/JS frontend (no build step).
 backend/
   app/
     main.py          FastAPI app + all API routes, serves the frontend
-    database.py      SQLAlchemy engine/session setup (SQLite; DATABASE_URL env var)
+    database.py      SQLAlchemy engine/session setup (DATABASE_URL env var; sqlite locally,
+                     postgres in production — normalizes postgres:// -> postgresql://)
     models.py        Client, EmailSend, SuppressionEntry, EmailTemplate tables
     schemas.py       Pydantic request/response models
     crud.py          DB access functions
@@ -35,8 +37,8 @@ frontend/
   send.html          Bulk email: upload sheet -> map columns -> edit template -> preview -> send
   suppression.html   View/add/remove suppressed addresses
   static/            CSS + vanilla JS
-Dockerfile           Image for deployment (e.g. Fly.io)
-fly.toml             Fly.io app config (volume, health check, scale-to-zero)
+Dockerfile           Image for deployment
+render.yaml          Render Blueprint (free web service, no persistent disk needed)
 ```
 
 ## Database models
@@ -49,7 +51,10 @@ fly.toml             Fly.io app config (volume, health check, scale-to-zero)
   sheet (populated manually or via unsubscribe links)
 - **email_templates** — the single reusable cold-email subject/body with `{{merge fields}}`
 
-The SQLite file is created automatically at `backend/crm.db` on first run.
+Locally, the SQLite file is created automatically at `backend/crm.db` on first run. In
+production, set `DATABASE_URL` to a Postgres connection string (see "Deploy to Render" below)
+— `create_all()` creates the tables there the same way, no migration framework needed for
+an app this size.
 
 ## Setup
 
@@ -109,47 +114,57 @@ Check connection status any time at `GET /api/gmail/status`, or the badge on the
 Sends are throttled to one every 4-5 seconds and stop automatically once today's send count
 nears 450, safely under Gmail's free-tier 500/day limit (`GMAIL_DAILY_LIMIT` env var to override).
 
-## Deploy to Fly.io
+## Deploy to Render (free tier, no card required)
 
-Deploys run via GitHub Actions (`.github/workflows/fly-deploy.yml`), not a local `flyctl`
-install — it runs `flyctl deploy --remote-only` on GitHub's runners on every push to `main`
-(or manually via the Actions tab's "Run workflow" button). The app itself, its volume, and
-its secrets are one-time setup done through Fly's web dashboard (no CLI required at all).
+Render's free web service has no persistent disk, so nothing this app needs to survive a
+restart can live in a local file: the database is an external free Postgres (Neon or
+Supabase), and the Gmail token is an env var (`GOOGLE_TOKEN_JSON`) rather than a local
+`token.json`. Uploaded sheets still land on local disk during a single upload→send session
+(fine — that's normally minutes, not across restarts), but don't expect an in-progress
+upload to survive the service spinning down.
 
-The app reads its persistent state from three places that must survive redeploys: the
-SQLite DB (`DATABASE_URL`), uploaded sheets (`UPLOADS_DIR`), and the Gmail token
-(`GOOGLE_TOKEN_JSON`). The DB/uploads live on a mounted volume; the Gmail token lives in a
-Fly secret (an env var) — never in a plain file baked into the image.
+Render deploys straight from this GitHub repo via Render's own dashboard integration — no
+GitHub Actions workflow, no CLI, nothing to install. `render.yaml` in the repo root is a
+Render "Blueprint": connecting the repo and pointing Render at this file provisions the
+service with the right settings pre-filled, prompting you for the secret values.
 
-**One-time setup (fly.io/dashboard):**
+**One-time setup, all from a browser:**
 
-1. Create a Personal Access Token (Account → Personal Access Tokens), add it to this repo's
-   GitHub Actions secrets as `FLY_API_TOKEN`.
-2. Create the app with the exact name in `fly.toml`'s `app =` field, in the region matching
-   `primary_region` (change either if you'd rather use your own).
-3. Attach a volume named to match `fly.toml`'s `[[mounts]] source` (1GB is plenty), in the
-   same region.
-4. Set secrets on the app: `GOOGLE_TOKEN_JSON` (required — the refresh token the app actually
-   sends mail with), `SECRET_KEY` (signs unsubscribe links; generate a fresh random value,
-   not reused from anything else), and optionally `GOOGLE_CREDENTIALS_JSON` (not used at
-   runtime, only kept for a future re-auth). Never put real values for these in this repo —
-   paste them only into Fly's dashboard or a local `fly secrets set`.
-5. Update `UNSUBSCRIBE_BASE_URL` in `fly.toml`'s `[env]` block to `https://<app-name>.fly.dev`
-   (or your custom domain, once attached) and push — that's what recipients' unsubscribe
-   links point at.
+1. **Create a free Postgres database** (Neon is simplest — just a connection string, no
+   extra product surface to navigate):
+   - Go to neon.tech, sign up, create a project.
+   - Copy the connection string it shows you (starts with `postgres://`, already includes
+     `?sslmode=require`) — this is your `DATABASE_URL`.
 
-Then push to `main` (or run the workflow manually) to deploy. Verify with:
+2. **Create the Render web service:**
+   - Go to render.com, sign up, connect your GitHub account, and grant it access to
+     `mariastellavanrooyen-blip/Social-Media-Management-`.
+   - New + → Blueprint → select this repo → Render reads `render.yaml` and shows the
+     `solo-crm-ee2172` web service with its env vars.
+   - It'll prompt for the `sync: false` values — fill in:
+     - `DATABASE_URL` — the Neon connection string from step 1.
+     - `GOOGLE_TOKEN_JSON` — the Gmail refresh token (see "Gmail setup" above for how to get
+       one; never commit this value anywhere).
+     - `SECRET_KEY` — a freshly generated random value (`openssl rand -hex 32`), not reused
+       from anything else. Signs unsubscribe links; keeping it stable across redeploys is
+       what keeps previously-sent unsubscribe links working.
+     - `GOOGLE_CREDENTIALS_JSON` — optional, skip unless you want it for a future re-auth.
+   - Confirm and create — Render builds the Dockerfile and deploys automatically. Every
+     future push to the connected branch redeploys automatically too.
+
+3. **Fix up the hostname once you know it.** Render assigns `https://<service-name>.onrender.com`
+   (already set to `https://solo-crm-ee2172.onrender.com` in `render.yaml` to match the
+   service name above) — if Render gave you a different subdomain because that name was
+   taken, update `UNSUBSCRIBE_BASE_URL` in `render.yaml` to match and push.
+
+**Verify:**
 ```bash
-curl https://<app-name>.fly.dev/healthz
-curl https://<app-name>.fly.dev/api/gmail/status   # should show {"connected": true}
+curl https://solo-crm-ee2172.onrender.com/healthz
+curl https://solo-crm-ee2172.onrender.com/api/gmail/status   # should show {"connected": true}
 ```
 
-This config targets Fly's smallest footprint (`shared-cpu-1x`, 256MB, a 1GB volume,
-scale-to-zero via `auto_stop_machines`/`min_machines_running = 0`) to fit comfortably
-within whatever free allowance Fly currently offers — check
-[fly.io/docs/about/pricing](https://fly.io/docs/about/pricing) for current numbers, since
-Fly's plans do change over time. Scale-to-zero means the app may take a few seconds to
-wake up on the first request after being idle; that's expected.
+Free-tier services spin down after 15 minutes idle and take a few seconds to wake on the
+next request — that's expected, not a bug.
 
 ## Run locally
 
