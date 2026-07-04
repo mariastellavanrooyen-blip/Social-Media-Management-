@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bulk Email — Solo CRM</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <nav class="nav">
+    <a href="/index.html">Clients</a>
+    <a href="/send.html" class="active">Bulk Email</a>
+    <a href="/suppression.html">Suppression List</a>
+  </nav>
+  <header>
+    <h1>Bulk Email</h1>
+    <span id="gmail-badge" class="badge">checking Gmail...</span>
+  </header>
+
+  <div class="card wide">
+    <div class="step">
+      <h2>1. Upload a contact sheet</h2>
+      <input type="file" id="file-input" accept=".csv,.xlsx,.xls">
+      <button id="upload-btn">Upload &amp; preview</button>
+      <div id="upload-error" class="error"></div>
+      <div id="upload-summary" class="meta"></div>
+    </div>
+
+    <div class="step" id="mapping-step" style="display:none">
+      <h2>2. Map columns</h2>
+      <div class="mapping-grid" id="mapping-grid"></div>
+      <div id="mapping-error" class="error"></div>
+    </div>
+
+    <div class="step" id="template-step" style="display:none">
+      <h2>3. Email template</h2>
+      <div class="field">
+        <label for="tpl-subject">Subject</label>
+        <input type="text" id="tpl-subject" placeholder="Quick question, {{name}}">
+      </div>
+      <div class="field">
+        <label for="tpl-body">Body (use {{name}}, {{company}}, or any uploaded column as {{Column Name}})</label>
+        <textarea id="tpl-body" rows="8" placeholder="Hi {{name}},&#10;&#10;..."></textarea>
+      </div>
+      <div class="actions">
+        <button id="save-template-btn">Save template</button>
+        <button class="secondary" id="preview-btn">Preview merged samples</button>
+      </div>
+      <div id="template-error" class="error"></div>
+    </div>
+
+    <div class="step" id="preview-step" style="display:none">
+      <h2>4. Preview</h2>
+      <div id="unknown-fields" class="warning"></div>
+      <div id="samples"></div>
+    </div>
+
+    <div class="step" id="send-step" style="display:none">
+      <h2>5. Send</h2>
+      <p class="meta">Sends throttled to 1 every 4-5s and stop automatically near the 450/day
+        Gmail free-tier safety margin. Suppressed/unsubscribed addresses are skipped
+        automatically.</p>
+      <button id="send-btn">Send to all rows</button>
+      <div id="send-error" class="error"></div>
+      <div id="send-progress" style="display:none">
+        <div class="progress-bar"><div class="progress-bar-fill" id="progress-fill" style="width:0%"></div></div>
+        <div class="stats">
+          <span id="stat-status"></span>
+          <span id="stat-sent"></span>
+          <span id="stat-failed"></span>
+          <span id="stat-skipped-suppressed"></span>
+          <span id="stat-skipped-invalid"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/send.js"></script>
+</body>
+</html>

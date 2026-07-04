@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Suppression List — Solo CRM</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <nav class="nav">
+    <a href="/index.html">Clients</a>
+    <a href="/send.html">Bulk Email</a>
+    <a href="/suppression.html" class="active">Suppression List</a>
+  </nav>
+  <header>
+    <h1>Suppression List</h1>
+  </header>
+
+  <p class="meta">Anyone here is automatically skipped on every future bulk send, even if
+    they appear in an uploaded sheet. Unsubscribe links add people here automatically.</p>
+
+  <div class="toolbar">
+    <input type="email" id="new-email" placeholder="email@example.com">
+    <input type="text" id="new-reason" placeholder="Reason (optional)">
+    <button id="add-btn">Add</button>
+  </div>
+  <div id="add-error" class="error"></div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Email</th>
+        <th>Reason</th>
+        <th>Added</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <div id="empty" class="empty" style="display:none">No suppressed addresses yet.</div>
+
+  <script src="/static/suppression.js"></script>
+</body>
+</html>

@@ -1,8 +1,8 @@
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.models import Client, ClientStatus
-from app.schemas import ClientCreate, ClientUpdate
+from app.models import Client, ClientStatus, EmailTemplate, SuppressionEntry
+from app.schemas import ClientCreate, ClientUpdate, SuppressionIn, TemplateIn
 
 
 def get_client(db: Session, client_id: int) -> Client | None:
@@ -46,3 +46,57 @@ def update_client(db: Session, client: Client, client_in: ClientUpdate) -> Clien
 def delete_client(db: Session, client: Client) -> None:
     db.delete(client)
     db.commit()
+
+
+def get_template(db: Session) -> EmailTemplate | None:
+    return db.query(EmailTemplate).order_by(EmailTemplate.id).first()
+
+
+def upsert_template(db: Session, template_in: TemplateIn) -> EmailTemplate:
+    template = get_template(db)
+    if template is None:
+        template = EmailTemplate(**template_in.model_dump())
+        db.add(template)
+    else:
+        template.subject = template_in.subject
+        template.body = template_in.body
+    db.commit()
+    db.refresh(template)
+    return template
+
+
+def list_suppressions(db: Session) -> list[SuppressionEntry]:
+    return db.query(SuppressionEntry).order_by(SuppressionEntry.created_at.desc()).all()
+
+
+def is_suppressed(db: Session, email: str) -> bool:
+    return (
+        db.query(SuppressionEntry)
+        .filter(SuppressionEntry.email == email.lower())
+        .first()
+        is not None
+    )
+
+
+def add_suppression(db: Session, entry_in: SuppressionIn) -> SuppressionEntry:
+    existing = (
+        db.query(SuppressionEntry)
+        .filter(SuppressionEntry.email == entry_in.email.lower())
+        .first()
+    )
+    if existing is not None:
+        return existing
+    entry = SuppressionEntry(email=entry_in.email.lower(), reason=entry_in.reason)
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    return entry
+
+
+def delete_suppression(db: Session, entry: SuppressionEntry) -> None:
+    db.delete(entry)
+    db.commit()
+
+
+def get_suppression(db: Session, entry_id: int) -> SuppressionEntry | None:
+    return db.get(SuppressionEntry, entry_id)

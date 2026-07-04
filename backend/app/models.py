@@ -61,3 +61,16 @@ class SuppressionEntry(Base):
     email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
     reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class EmailTemplate(Base):
+    """The single reusable cold-email template, edited in place."""
+
+    __tablename__ = "email_templates"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    subject: Mapped[str] = mapped_column(String(998), nullable=False, default="")
+    body: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )

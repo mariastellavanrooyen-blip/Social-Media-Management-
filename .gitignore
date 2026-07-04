@@ -5,6 +5,14 @@ venv/
 *.db
 .env
 
-# Gmail OAuth (added in a later phase, never commit these)
+# Gmail OAuth (never commit these)
 credentials.json
 token.json
+
+# Unsubscribe-link signing secret (auto-generated on first run)
+.secret_key
+backend/.secret_key
+
+# Uploaded contact sheets (transient, per-upload data)
+backend/uploads/*
+!backend/uploads/.gitkeep
