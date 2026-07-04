@@ -59,18 +59,44 @@ pip install -r requirements.txt
 
 ## Gmail setup (one-time)
 
+Either path below ends the same way: a `backend/token.json` refresh token that the web app
+reads for every send (it never runs either flow itself — both are one-time, manual steps).
+
+### Option A — you have a browser on the same machine you run the server on
+
 1. In Google Cloud Console, create an OAuth client (type "Desktop app"), enable the Gmail API,
    and download its credentials as `backend/credentials.json` (never committed — it's gitignored).
-2. Run the interactive authorization **locally, on a machine with a browser** — this opens a
-   Google consent screen and cannot run unattended on a headless server:
+2. Run:
    ```bash
    cd backend
    source .venv/bin/activate
    python scripts/gmail_auth.py
    ```
-   This caches a refresh token in `backend/token.json` (also gitignored). The web app itself
-   never triggers this flow — it only reads the cached token and refreshes it as needed.
-3. Check connection status any time at `GET /api/gmail/status`, or the badge on the Bulk Email page.
+   This opens a local browser for the Google consent screen and caches the resulting token.
+
+### Option B — no local browser (e.g. running this on a headless box, driving it from a tablet/phone)
+
+Uses Google's Device Authorization flow — no redirect URI and no exposed port required.
+
+1. In Google Cloud Console, create a **separate** OAuth client of type **"TVs and Limited Input
+   devices"** (Gmail API must already be enabled on the project) and save its `client_id`/
+   `client_secret` as `backend/device_credentials.json` (gitignored), e.g.:
+   ```json
+   {"installed": {"client_id": "...", "client_secret": "..."}}
+   ```
+2. Make sure your Google account is under **OAuth consent screen → Test users** and that
+   `gmail.send` is listed as a scope.
+3. Run:
+   ```bash
+   cd backend
+   source .venv/bin/activate
+   python scripts/gmail_device_auth.py
+   ```
+   It prints a short code and a URL (`google.com/device`) — open that URL and enter the code on
+   any device with a browser (your tablet is fine), sign in, and grant access. The script polls
+   Google in the background and writes `token.json` once you approve it.
+
+Check connection status any time at `GET /api/gmail/status`, or the badge on the Bulk Email page.
 
 Sends are throttled to one every 4-5 seconds and stop automatically once today's send count
 nears 450, safely under Gmail's free-tier 500/day limit (`GMAIL_DAILY_LIMIT` env var to override).
