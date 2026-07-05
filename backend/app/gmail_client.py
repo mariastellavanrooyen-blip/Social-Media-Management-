@@ -1,6 +1,8 @@
 import base64
+import html
 import json
 import os
+import re
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
@@ -95,7 +97,21 @@ def build_service(creds: Credentials):
     return build("gmail", "v1", credentials=creds)
 
 
-def send_email(service, to: str, subject: str, html_body: str, unsubscribe_url: str) -> None:
+def plain_text_to_html(text: str) -> str:
+    """Turn a plain-text merged body into HTML that preserves the author's line breaks.
+
+    Sending raw text as the "html" MIME subtype (with no markup at all) makes HTML email
+    clients collapse every line break into one run-on paragraph, and leaves any stray
+    "<", ">", "&" in the text — including from merged spreadsheet data — unescaped.
+    """
+    paragraphs = re.split(r"\n\s*\n", text.strip())
+    html_paragraphs = [
+        html.escape(paragraph).replace("\n", "<br>") for paragraph in paragraphs if paragraph.strip()
+    ]
+    return "".join(f'<p style="margin:0 0 1em;">{p}</p>' for p in html_paragraphs)
+
+
+def send_email(service, to: str, subject: str, body: str, unsubscribe_url: str) -> None:
     message = MIMEMultipart("alternative")
     message["To"] = to
     message["Subject"] = subject
@@ -105,7 +121,7 @@ def send_email(service, to: str, subject: str, html_body: str, unsubscribe_url: 
         '<hr><p style="font-size:12px;color:#888">'
         f'<a href="{unsubscribe_url}">Unsubscribe</a></p>'
     )
-    message.attach(MIMEText(html_body + footer, "html"))
+    message.attach(MIMEText(plain_text_to_html(body) + footer, "html"))
 
     raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
     service.users().messages().send(userId="me", body={"raw": raw}).execute()
