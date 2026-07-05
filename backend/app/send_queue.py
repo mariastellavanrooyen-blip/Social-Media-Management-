@@ -131,5 +131,12 @@ async def run_job(
 
         if job.status == "running":
             job.status = "completed"
+    except Exception as e:
+        # Safety net: whatever else goes wrong (an expired/revoked token producing a
+        # RefreshError rather than our own GmailNotAuthorized, a transient network or DB
+        # error, etc.), the job must reach a terminal state instead of silently freezing
+        # at "running" forever with no visible error.
+        job.status = "failed"
+        job.error = f"Send job failed unexpectedly: {e}"
     finally:
         db.close()

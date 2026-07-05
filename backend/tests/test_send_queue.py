@@ -150,3 +150,21 @@ def test_run_job_fails_cleanly_when_gmail_not_authorized(send_db, monkeypatch):
 
     assert job.status == "failed"
     assert job.error == "not connected"
+
+
+def test_run_job_terminates_on_unexpected_credential_error(send_db, monkeypatch):
+    # Regression test: a real expired/revoked token raises google.auth's RefreshError,
+    # not our own GmailNotAuthorized. Before this fix, any exception other than
+    # GmailNotAuthorized during credential setup crashed the background asyncio task
+    # silently, leaving the job frozen at "running" forever with no visible error.
+    def raise_unexpected():
+        raise RuntimeError("invalid_client: the provided client secret is invalid")
+
+    monkeypatch.setattr(send_queue.gmail_client, "get_credentials", raise_unexpected)
+
+    df = pd.DataFrame([{"Name": "Ada", "Email": "ada@example.com"}])
+    job = SendJob(job_id="j7", total=len(df))
+    asyncio.run(send_queue.run_job(job, df, {"name": "Name", "email": "Email"}, "s", "b"))
+
+    assert job.status == "failed"
+    assert "invalid_client" in job.error
